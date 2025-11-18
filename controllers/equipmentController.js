@@ -277,7 +277,122 @@ const equipmentController = {
         error: error.message
       });
     }
+  },
+  
+etRecentEquipment: async (req, res) => {
+    try {
+      console.log('📋 Fetching last 5 equipment items');
+      
+      const recentEquipment = await Equipment.find({ isActive: true })
+        .sort({ createdAt: -1 }) // Sort by newest first
+        .limit(5) // Limit to 5 results
+        .select('_id name model serialNumber category status createdAt') // Select only needed fields
+        .lean(); // Convert to plain JavaScript objects
+
+      console.log(`✅ Found ${recentEquipment.length} recent equipment items`);
+
+      res.json({
+        success: true,
+        message: `Found ${recentEquipment.length} recent equipment items`,
+        count: recentEquipment.length,
+        equipment: recentEquipment
+      });
+
+    } catch (error) {
+      console.error('❌ Error fetching recent equipment:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  },
+
+ /**
+   * Get last 5 equipment IDs added to the database
+   */
+  getRecentEquipment: async (req, res) => {
+    try {
+      console.log('📋 Fetching last 5 equipment items');
+      
+      const recentEquipment = await Equipment.find({ isActive: true })
+        .sort({ createdAt: -1 }) // Sort by newest first
+        .limit(5) // Limit to 5 results
+        .select('_id name model serialNumber category status createdAt') // Select only needed fields
+        .lean(); // Convert to plain JavaScript objects
+
+      console.log(`✅ Found ${recentEquipment.length} recent equipment items`);
+
+      res.json({
+        success: true,
+        message: `Found ${recentEquipment.length} recent equipment items`,
+        count: recentEquipment.length,
+        equipment: recentEquipment
+      });
+
+    } catch (error) {
+      console.error('❌ Error fetching recent equipment:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  },
+
+ /**
+ * Get last 5 equipment IDs added to the database
+ */
+getRecentEquipment: async (req, res) => {
+  try {
+    const recentEquipment = await Equipment.find({ isActive: true })
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .limit(5) // Limit to 5 results
+      .select('_id name model serialNumber category status createdAt') // Select only needed fields
+      .lean(); // Convert to plain JavaScript objects
+
+    res.json({
+      success: true,
+      message: `Found ${recentEquipment.length} recent equipment items`,
+      count: recentEquipment.length,
+      equipment: recentEquipment
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+},
+
+/**
+ * Get only the IDs of last 5 equipment (if you want just IDs)
+ */
+getRecentEquipmentIds: async (req, res) => {
+  try {
+    const recentEquipmentIds = await Equipment.find({ isActive: true })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('_id') // Only get the ID field
+      .lean();
+
+    // Extract just the IDs as an array of strings
+    const equipmentIds = recentEquipmentIds.map(item => item._id.toString());
+
+    res.json({
+      success: true,
+      message: `Found ${equipmentIds.length} recent equipment IDs`,
+      count: equipmentIds.length,
+      equipmentIds: equipmentIds,
+      fullObjects: recentEquipmentIds // Include full objects if needed
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
 };
 
 module.exports = equipmentController;

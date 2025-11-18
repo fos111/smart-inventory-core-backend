@@ -30,4 +30,10 @@ router.post('/:id/generate-qr', validateRequest(generateQRSchema), equipmentCont
 router.post('/batch/generate-qr', validateRequest(batchQRSchema), equipmentController.generateBatchQR);
 router.post('/:id/track-scan', equipmentController.trackQRScan);
 
+// Recent equipment routes
+router.get('/recent/ids', equipmentController.getRecentEquipmentIds);
+router.get('/recent/all', equipmentController.getRecentEquipment);
+
+
+
 module.exports = router;
