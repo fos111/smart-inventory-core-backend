@@ -63,7 +63,7 @@ A Node.js backend application for managing equipment inventory with QR code inte
 | DELETE | `/api/equipment/:id` | Soft delete equipment |
 | POST | `/api/equipment/:id/generate-qr` | Generate QR code for equipment |
 
-## MOVEMENT TRACKING (/api/movements)
+## Movement Tracking (/api/movements)
 
 | Method | Endpoint | Description | Parameters / Body |
 |---|---:|---|---|
@@ -71,7 +71,7 @@ A Node.js backend application for managing equipment inventory with QR code inte
 | GET | /api/movements/equipment/:equipmentId/history | Get movement history | Path: equipmentId (ObjectId / serial / assetTag) |
 | POST | /api/movements/rfid-detection | Handle RFID automatic detection | Body: readerId, equipmentTag, eventType |
 
-## ROOMS MANAGEMENT (/api/rooms)
+## Rooms Management (/api/rooms)
 
 | Method | Endpoint | Description | Parameters / Body |
 |---|---:|---|---|
