@@ -63,6 +63,26 @@ A Node.js backend application for managing equipment inventory with QR code inte
 | DELETE | `/api/equipment/:id` | Soft delete equipment |
 | POST | `/api/equipment/:id/generate-qr` | Generate QR code for equipment |
 
+## MOVEMENT TRACKING (/api/movements)
+
+| Method | Endpoint | Description | Parameters / Body |
+|---|---:|---|---|
+| POST | /api/movements/equipment/:equipmentId/move | Move equipment to new room | Path: equipmentId (ObjectId / serial / assetTag). Body: newRoomId OR newRoomCode + reason |
+| GET | /api/movements/equipment/:equipmentId/history | Get movement history | Path: equipmentId (ObjectId / serial / assetTag) |
+| POST | /api/movements/rfid-detection | Handle RFID automatic detection | Body: readerId, equipmentTag, eventType |
+
+## ROOMS MANAGEMENT (/api/rooms)
+
+| Method | Endpoint | Description | Parameters / Body |
+|---|---:|---|---|
+| GET | /api/rooms | Get all rooms | — |
+| GET | /api/rooms/:id | Get room by ID | Path: id (ObjectId) |
+| POST | /api/rooms | Create new room | Body: Room data |
+| PUT | /api/rooms/:id | Update room | Path: id (ObjectId). Body: Update data |
+| DELETE | /api/rooms/:id | Delete room | Path: id (ObjectId) |
+| PATCH | /api/rooms/:id/rfid-readers | Add RFID reader to room | Path: id (ObjectId). Body: RFID reader data |
+| GET | /api/rooms/:id/rfid-stats | Get RFID statistics | Path: id (ObjectId) |
+
 ### Health Check
 - `GET /health` - API status and database connection
 

@@ -24,7 +24,7 @@ const maintenanceRecordSchema = new mongoose.Schema({
     type: Number, 
     min: 0 
   },
-  duration: Number, // in hours
+  duration: Number,
   partsUsed: [{
     name: String,
     quantity: Number,
@@ -40,8 +40,39 @@ const maintenanceRecordSchema = new mongoose.Schema({
   timestamps: true 
 });
 
+const movementHistorySchema = new mongoose.Schema({
+  fromRoom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room'
+  },
+  toRoom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room'
+  },
+  movedAt: {
+    type: Date,
+    default: Date.now
+  },
+  movedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reason: {
+    type: String,
+    enum: ['manual', 'rfid_auto', 'maintenance', 'transfer', 'other'],
+    default: 'manual'
+  },
+  detectedByRFID: {
+    type: Boolean,
+    default: false
+  },
+  rfidReaderId: String,
+  notes: String
+}, {
+  timestamps: true
+});
+
 const equipmentSchema = new mongoose.Schema({
-  // Core Identification
   name: { 
     type: String, 
     required: [true, 'Equipment name is required'],
@@ -58,17 +89,33 @@ const equipmentSchema = new mongoose.Schema({
     required: [true, 'Serial number is required'],
     unique: true,
     trim: true,
-    uppercase: true 
+    uppercase: true,
+    index: true
   },
   assetTag: { 
     type: String, 
     unique: true,
     sparse: true,
     trim: true,
-    uppercase: true 
+    uppercase: true,
+    index: true
   },
   
-  // Classification & Categorization
+  rfidTag: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    uppercase: true,
+    index: true
+  },
+  rfidStatus: {
+    type: String,
+    enum: ['active', 'inactive', 'lost', 'replaced'],
+    default: 'active'
+  },
+  lastRFIDDetection: Date,
+  
   category: {
     type: String,
     required: [true, 'Category is required'],
@@ -82,7 +129,6 @@ const equipmentSchema = new mongoose.Schema({
   subCategory: String,
   tags: [String],
   
-  // Specifications
   specifications: {
     manufacturer: { 
       type: String, 
@@ -105,12 +151,11 @@ const equipmentSchema = new mongoose.Schema({
     additionalSpecs: mongoose.Schema.Types.Mixed
   },
   
-  // Status & Condition
   status: {
     type: String,
     enum: [
       'available', 'in-use', 'maintenance', 'out-of-service', 
-      'retired', 'reserved', 'lost'
+      'retired', 'reserved', 'lost', 'in-transit'
     ],
     default: 'available'
   },
@@ -120,18 +165,40 @@ const equipmentSchema = new mongoose.Schema({
     default: 'good'
   },
   
-  // Location & Assignment
   location: {
     building: String,
     floor: String,
-    room: String,
+    room: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Room'
+    },
+    roomCode: {
+      type: String,
+      index: true
+    },
     department: String,
     specificLocation: String,
     coordinates: {
       latitude: Number,
       longitude: Number
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now
+    },
+    updateMethod: {
+      type: String,
+      enum: ['manual', 'rfid_auto', 'qr_scan', 'system'],
+      default: 'manual'
     }
   },
+  
+  movementHistory: [movementHistorySchema],
+  currentMovement: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Movement'
+  },
+  
   assignedTo: {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -142,7 +209,6 @@ const equipmentSchema = new mongoose.Schema({
     dateAssigned: Date
   },
   
-  // Financial & Ownership
   ownership: {
     type: String,
     enum: ['owned', 'leased', 'rented', 'borrowed'],
@@ -164,13 +230,12 @@ const equipmentSchema = new mongoose.Schema({
   currentValue: { type: Number, min: 0 },
   depreciationRate: Number,
   
-  // Maintenance & Service
   maintenance: {
     schedule: {
       type: String,
       enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'as-needed']
     },
-    serviceInterval: Number, // in days
+    serviceInterval: Number,
     lastMaintenanceDate: Date,
     nextMaintenanceDate: Date,
     maintenanceHistory: [maintenanceRecordSchema],
@@ -180,7 +245,6 @@ const equipmentSchema = new mongoose.Schema({
     }
   },
   
-  // Usage & Lifecycle
   usage: {
     totalOperatingHours: {
       type: Number,
@@ -198,7 +262,6 @@ const equipmentSchema = new mongoose.Schema({
     }]
   },
   
-  // Safety & Compliance
   safety: {
     requiresCertification: Boolean,
     lastInspectionDate: Date,
@@ -217,7 +280,6 @@ const equipmentSchema = new mongoose.Schema({
     }]
   },
   
-  // Digital Assets
   documents: [{
     name: String,
     url: String,
@@ -229,13 +291,12 @@ const equipmentSchema = new mongoose.Schema({
   }],
   images: [String],
   
-  // QR Code System
   qrCode: {
     data: String,
-    generatedAt: Date
+    generatedAt: Date,
+    lastScanned: Date
   },
   
-  // System Fields
   isActive: {
     type: Boolean,
     default: true
@@ -252,9 +313,6 @@ const equipmentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-
-
-// Virtual Fields
 equipmentSchema.virtual('ageInMonths').get(function() {
   if (!this.purchaseInfo?.purchaseDate) return 0;
   const purchaseDate = new Date(this.purchaseInfo.purchaseDate);
@@ -275,7 +333,77 @@ equipmentSchema.virtual('maintenanceStatus').get(function() {
   return 'on-schedule';
 });
 
-// Instance Methods
+equipmentSchema.virtual('timeInCurrentLocation').get(function() {
+  if (!this.location.lastUpdated) return 0;
+  const lastUpdate = new Date(this.location.lastUpdated);
+  const now = new Date();
+  return Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
+});
+
+equipmentSchema.methods.moveToRoom = async function(newRoomId, movedBy = null, reason = "manual", rfidData = null) {
+  const oldRoomId = this.location.room;
+  
+  const movementRecord = {
+    fromRoom: oldRoomId,
+    toRoom: newRoomId,
+    movedBy: movedBy,
+    reason: reason,
+    detectedByRFID: rfidData ? true : false,
+    rfidReaderId: rfidData ? rfidData.readerId : null,
+    notes: rfidData ? `Détection RFID automatique - Lecteur: ${rfidData.readerId}` : null
+  };
+  
+  this.movementHistory.push(movementRecord);
+  this.location.room = newRoomId;
+  this.location.lastUpdated = new Date();
+  this.location.updateMethod = rfidData ? 'rfid_auto' : 'manual';
+  
+  if (this.status === 'in-transit') {
+    this.status = 'available';
+  }
+  
+  const Room = mongoose.model('Room');
+  const newRoom = await Room.findById(newRoomId);
+  if (newRoom) {
+    this.location.roomCode = newRoom.code;
+    this.location.building = newRoom.building;
+    this.location.department = newRoom.department;
+  }
+  
+  if (rfidData) {
+    this.lastRFIDDetection = new Date();
+  }
+  
+  return this.save();
+};
+
+equipmentSchema.methods.markAsInTransit = async function(destinationRoomId = null, movedBy = null) {
+  this.status = 'in-transit';
+  
+  if (destinationRoomId) {
+    this.movementHistory.push({
+      fromRoom: this.location.room,
+      toRoom: destinationRoomId,
+      movedBy: movedBy,
+      reason: 'in_transit',
+      notes: 'Équipement en cours de déplacement'
+    });
+  }
+  
+  return this.save();
+};
+
+equipmentSchema.methods.assignRFIDTag = async function(rfidTag) {
+  this.rfidTag = rfidTag;
+  this.rfidStatus = 'active';
+  return this.save();
+};
+
+equipmentSchema.methods.deactivateRFID = async function() {
+  this.rfidStatus = 'inactive';
+  return this.save();
+};
+
 equipmentSchema.methods.addMaintenanceRecord = function(recordData) {
   this.maintenance.maintenanceHistory.push(recordData);
   this.maintenance.lastMaintenanceDate = recordData.date;
@@ -317,7 +445,6 @@ equipmentSchema.methods.generateQRData = function() {
   });
 };
 
-// Static Methods
 equipmentSchema.statics.findDueForMaintenance = function() {
   const today = new Date();
   return this.find({
@@ -334,5 +461,48 @@ equipmentSchema.statics.findByStatus = function(status) {
 equipmentSchema.statics.findByCategory = function(category) {
   return this.find({ category, isActive: true });
 };
+
+equipmentSchema.statics.findByRoom = function(roomId) {
+  return this.find({ 
+    'location.room': roomId, 
+    isActive: true 
+  }).populate('location.room', 'code name building');
+};
+
+equipmentSchema.statics.findByRFIDTag = function(rfidTag) {
+  return this.findOne({ 
+    rfidTag: rfidTag.toUpperCase(),
+    isActive: true 
+  });
+};
+
+equipmentSchema.statics.findNoRecentRFID = function(days = 7) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  
+  return this.find({
+    rfidStatus: 'active',
+    $or: [
+      { lastRFIDDetection: { $lt: cutoffDate } },
+      { lastRFIDDetection: null }
+    ],
+    isActive: true
+  });
+};
+
+equipmentSchema.pre('save', function(next) {
+  if (this.location.roomCode) {
+    this.location.roomCode = this.location.roomCode.toUpperCase();
+  }
+  if (this.rfidTag) {
+    this.rfidTag = this.rfidTag.toUpperCase();
+  }
+  next();
+});
+
+equipmentSchema.index({ 'location.room': 1, status: 1 });
+equipmentSchema.index({ 'location.roomCode': 1, isActive: 1 });
+equipmentSchema.index({ rfidTag: 1, rfidStatus: 1 });
+equipmentSchema.index({ status: 1, category: 1 });
 
 module.exports = mongoose.model('Equipment', equipmentSchema);
