@@ -5,6 +5,7 @@ require('dotenv').config();
 
 // Import routes
 const equipmentRoutes = require('./routes/equipment');
+const roomRoutes = require('./routes/rooms'); 
 
 // Initialize Express app
 const app = express();
@@ -30,6 +31,7 @@ connectDB();
 
 // Routes
 app.use('/api/equipment', equipmentRoutes);
+app.use('/api/rooms', roomRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
