@@ -73,15 +73,18 @@ A Node.js backend application for managing equipment inventory with QR code inte
 
 ## Rooms Management (/api/rooms)
 
-| Method | Endpoint | Description | Parameters / Body |
-|---|---:|---|---|
-| GET | /api/rooms | Get all rooms | — |
-| GET | /api/rooms/:id | Get room by ID | Path: id (ObjectId) |
-| POST | /api/rooms | Create new room | Body: Room data |
-| PUT | /api/rooms/:id | Update room | Path: id (ObjectId). Body: Update data |
-| DELETE | /api/rooms/:id | Delete room | Path: id (ObjectId) |
-| PATCH | /api/rooms/:id/rfid-readers | Add RFID reader to room | Path: id (ObjectId). Body: RFID reader data |
-| GET | /api/rooms/:id/rfid-stats | Get RFID statistics | Path: id (ObjectId) |
+
+
+| Method | Endpoint | Description |
+|---|---:|---|
+| GET | /api/rooms | Toutes les salles |
+| GET | /api/rooms/with-rfid | Salles avec RFID |
+| GET | /api/rooms/type/:type | Salles par type |
+| GET | /api/rooms/building/:building | Salles par bâtiment |
+| GET | /api/rooms/:id | Salle spécifique (ID ou code) |
+| POST | /api/rooms | Créer une salle |
+| PATCH | /api/rooms/:id/rfid-readers | Ajouter lecteur RFID |
+| GET | /api/rooms/:id/rfid-stats | Statistiques RFID
 
 ### Health Check
 - `GET /health` - API status and database connection
