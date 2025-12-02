@@ -127,6 +127,180 @@ smart-inventory/
 └── server.js         # Application entry point
 ```
 
+
+
+### **SYSTÈME DE CHANGEMENT DE LOCALISATION HIÉRARCHIQUE**
+
+| Méthode | Endpoint | Description | Paramètres | Corps de la Requête (JSON) |
+|---------|----------|-------------|------------|----------------------------|
+| **POST** | `/api/location-change` | Créer une demande de changement de localisation | - | `equipmentId`, `requestedRoom`, `reason`, `requestedBy`, `department` |
+| **GET** | `/api/location-change/pending` | Obtenir toutes les demandes en attente d'approbation | - | - |
+| **PUT** | `/api/location-change/:id/approve` | Approuver une demande de changement | `id` (path) | `reviewNotes`, `reviewedBy` |
+| **PUT** | `/api/location-change/:id/reject` | Rejeter une demande de changement | `id` (path) | `reviewNotes`, `reviewedBy` |
+| **GET** | `/api/location-change/history/:equipmentId` | Obtenir l'historique des changements d'un équipement | `equipmentId` (path) | - |
+
+---
+
+## 📝 DÉTAIL DES ENDPOINTS
+
+### **1. Créer une demande de changement**
+
+**Endpoint:** `POST /api/location-change`
+
+**Exemple de requête:**
+```bash
+curl -X POST http://localhost:3000/api/location-change \
+  -H "Content-Type: application/json" \
+  -d '{
+    "equipmentId": "691dbcf47c0864e6fbe7636a",
+    "requestedRoom": "LI2",
+    "reason": "Transfert pour projet de recherche",
+    "requestType": "transfer",
+    "requestedBy": "Professeur Martin",
+    "department": "Informatique",
+    "priority": "medium",
+    "notes": "Utilisation pour le laboratoire d'IA"
+  }'
+```
+
+**Paramètres requis:**
+```javascript
+{
+  "equipmentId": "string (ObjectId)",      // ID de l'équipement
+  "requestedRoom": "string",               // Code de la salle (ex: "LI2")
+  "reason": "string",                      // Raison du déplacement (max 500 chars)
+  "requestedBy": "string",                 // Nom de la personne qui demande
+  "department": "string"                   // Département
+}
+```
+
+**Paramètres optionnels:**
+```javascript
+{
+  "requestType": "string",                 // transfer|repair|maintenance|inventory|other
+  "priority": "string",                    // low|medium|high|urgent
+  "notes": "string"                        // Notes supplémentaires
+}
+```
+
+**Réponse réussie (201):**
+```json
+{
+  "success": true,
+  "message": "Demande de changement de localisation créée avec succès",
+  "requestId": "67890abcdef1234567890cd",
+  "request": {
+    "id": "67890abcdef1234567890cd",
+    "equipment": "Epson WorkForce Pro Printer",
+    "from": "LI1",
+    "to": "LI2",
+    "status": "pending",
+    "requestedAt": "2024-12-19T10:30:00.000Z"
+  }
+}
+```
+
+**Codes d'erreur:**
+- `400`: Demande déjà en attente pour cet équipement
+- `404`: Équipement ou salle non trouvé
+- `500`: Erreur serveur
+
+---
+
+### **2. Obtenir les demandes en attente**
+
+**Endpoint:** `GET /api/location-change/pending`
+
+**Exemple de requête:**
+```bash
+curl http://localhost:3000/api/location-change/pending
+```
+
+**Réponse réussie (200):**
+```json
+{
+  "success": true,
+  "message": "2 demandes en attente",
+  "count": 2,
+  "requests": [
+    {
+      "_id": "67890abcdef1234567890cd",
+      "equipment": {
+        "_id": "691dbcf47c0864e6fbe7636a",
+        "name": "Epson WorkForce Pro Printer",
+        "serialNumber": "EPSONPRINT001",
+        "model": "WF-7840"
+      },
+      "currentLocation": {
+        "building": "Département Informatique",
+        "room": "LI1",
+        "department": "Informatique"
+      },
+      "requestedLocation": {
+        "building": "Département Informatique",
+        "room": "LI2",
+        "department": "Informatique"
+      },
+      "reason": "Transfert pour projet de recherche",
+      "requestedBy": {
+        "userName": "Professeur Martin",
+        "department": "Informatique"
+      },
+      "status": "pending",
+      "priority": "medium",
+      "requestedDate": "2024-12-19T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### **3. Approuver une demande**
+
+**Endpoint:** `PUT /api/location-change/:id/approve`
+
+**Exemple de requête:**
+```bash
+curl -X PUT http://localhost:3000/api/location-change/67890abcdef1234567890cd/approve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reviewNotes": "Approuvé pour le projet de recherche IA",
+    "reviewedBy": "Admin Système"
+  }'
+```
+
+**Paramètres optionnels:**
+```javascript
+{
+  "reviewNotes": "string",     // Notes de l'admin (max 500 chars)
+  "reviewedBy": "string",      // Nom de l'administrateur
+  "effectiveDate": "string"    // Date ISO (défaut: maintenant)
+}
+```
+
+**Réponse réussie (200):**
+```json
+{
+  "success": true,
+  "message": "Changement de localisation approuvé et appliqué",
+  "equipment": {
+    "id": "691dbcf47c0864e6fbe7636a",
+    "name": "Epson WorkForce Pro Printer",
+    "newLocation": {
+      "building": "Département Informatique",
+      "room": "LI2",
+      "department": "Informatique",
+      "lastUpdated": "2024-12-19T10:35:00.000Z"
+    }
+  },
+  "request": {
+    "id": "67890abcdef1234567890cd",
+    "status": "approved",
+    "reviewedAt": "2024-12-19T10:35:00.000Z"
+  }
+}
+```
 ## 🔧 Development Scripts
 
 - `npm run dev` - Start development server with nodemon
