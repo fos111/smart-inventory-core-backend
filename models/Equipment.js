@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose');  // <-- AJOUTE CETTE LIGNE MANQUANTE !
 
 const maintenanceRecordSchema = new mongoose.Schema({
   date: { 
@@ -308,11 +308,26 @@ const equipmentSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  
+  // CHAMP AJOUTÉ POUR LE SYSTÈME DE VALIDATION HIÉRARCHIQUE
+  pendingLocationChange: {
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LocationChangeRequest'
+    },
+    requestedLocation: {
+      building: String,
+      room: String,
+      department: String
+    },
+    requestedAt: Date
   }
 }, {
   timestamps: true
 });
 
+// Virtuals
 equipmentSchema.virtual('ageInMonths').get(function() {
   if (!this.purchaseInfo?.purchaseDate) return 0;
   const purchaseDate = new Date(this.purchaseInfo.purchaseDate);
@@ -340,6 +355,7 @@ equipmentSchema.virtual('timeInCurrentLocation').get(function() {
   return Math.floor((now - lastUpdate) / (1000 * 60 * 60 * 24));
 });
 
+// Methods
 equipmentSchema.methods.moveToRoom = async function(newRoomId, movedBy = null, reason = "manual", rfidData = null) {
   const oldRoomId = this.location.room;
   
@@ -445,6 +461,7 @@ equipmentSchema.methods.generateQRData = function() {
   });
 };
 
+// Statics
 equipmentSchema.statics.findDueForMaintenance = function() {
   const today = new Date();
   return this.find({
@@ -490,6 +507,7 @@ equipmentSchema.statics.findNoRecentRFID = function(days = 7) {
   });
 };
 
+// Pre-save middleware
 equipmentSchema.pre('save', function(next) {
   if (this.location.roomCode) {
     this.location.roomCode = this.location.roomCode.toUpperCase();
@@ -500,6 +518,7 @@ equipmentSchema.pre('save', function(next) {
   next();
 });
 
+// Indexes
 equipmentSchema.index({ 'location.room': 1, status: 1 });
 equipmentSchema.index({ 'location.roomCode': 1, isActive: 1 });
 equipmentSchema.index({ rfidTag: 1, rfidStatus: 1 });

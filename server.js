@@ -7,8 +7,7 @@ require('dotenv').config();
 const equipmentRoutes = require('./routes/equipment');
 const roomRoutes = require('./routes/rooms'); 
 const movementRoutes = require('./routes/movements'); 
-
-
+const locationChangeRoutes = require('./routes/locationChange');
 // Initialize Express app
 const app = express();
 
@@ -16,6 +15,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/location-change', locationChangeRoutes);
 
 // MongoDB Atlas connection
 const connectDB = async () => {
